@@ -13,7 +13,7 @@ actiontypes = spadlcfg.actiontypes
 min_dribble_length = 3
 max_dribble_length = 60
 max_dribble_duration = 10
-max_pass_duration = 15
+#max_pass_duration = 15
 
 atomic_actiontypes = actiontypes + ["receival","interception","out","offside","goal","owngoal","yellow_card","red_card"]
 
@@ -52,9 +52,9 @@ def extra_from_passes(actions):
     
     samegame = actions.game_id == next_actions.game_id
     sameperiod = actions.period_id == next_actions.period_id
-    samephase = next_actions.time_seconds - actions.time_seconds < max_pass_duration
+    #samephase = next_actions.time_seconds - actions.time_seconds < max_pass_duration
     extra_idx = (actions.type_id.isin(pass_ids) 
-                & samegame & sameperiod & samephase 
+                & samegame & sameperiod #& samephase 
                 & ~next_actions.type_id.isin(interception_ids)
                 )
 
