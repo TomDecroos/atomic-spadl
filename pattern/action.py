@@ -1,0 +1,90 @@
+import sklearn.mixture as mix
+import numpy as np
+import pandas as pd
+
+def simplify(actions):
+    a=actions
+    corner_idx = a.type_name.str.contains("corner")
+    a["type_name"] = a["type_name"].mask(corner_idx,"corner")
+
+    freekick_idx = a.type_name.str.contains("freekick")
+    a["type_name"] = a["type_name"].mask(freekick_idx,"freekick")
+
+    keeper_idx = a.type_name.str.contains("keeper")
+    a["type_name"] = a["type_name"].mask(keeper_idx,"keeper_catch")
+
+    a["x"] = a.x.mask(a.type_name=="goalkick",5)
+    a["y"] = a.y.mask(a.type_name=="goalkick",32.5)
+    return a
+
+
+class GMMEnsemble:
+
+    def __init__(self,cols,models):
+        self.cols = cols
+        self.models = models
+
+    def components(self):
+        return {k : m.n_components for k,m in self.models.items()}
+    
+    def total_components(self):
+        return sum(self.components().values())
+
+    def fit(self,actions,verbose=False):
+        bad_models = []
+        for k in self.models:
+            type_idx = actions.type_name == k
+            a = actions[type_idx][self.cols]
+            if len(a) > 1:
+                if len(a) < self.models[k].n_components:
+                    self.models[k].n_components = 1
+                if verbose:
+                    print(f"learning {self.models[k].n_components} {k} components from {len(a)} actions")
+                    self.models[k].fit(a)
+            else:
+                bad_models.append(k)
+        if verbose:
+            print("bad models:", bad_models)
+        for k in bad_models:
+            del self.models[k]
+    
+    def _columns(self):
+        return [k + str(i)
+                for k,n_c in self.components().items()
+                for i in range(1,n_c+1)]
+    
+    def predict_proba(self,actions):
+        components = self._columns()
+        probs = np.zeros((len(actions),len(components)))
+        i = 0
+        for k,model in self.models.items():
+            type_idx = actions.type_name == k
+            if any(type_idx):
+                a = actions[type_idx][self.cols]
+                type_probs = model.predict_proba(a)
+                probs[type_idx,i:i+model.n_components] = type_probs
+            i = i + model.n_components
+        return pd.DataFrame(data=probs,columns=components)
+
+def greedy_gmme(actions,cols,n,verbose=False):
+    type_names = set(actions.type_name)
+    dfs = {k : actions[actions.type_name == k][cols] for k in type_names}
+
+    base = GMMEnsemble(cols, {k: mix.GaussianMixture(1) for k in type_names})
+    cand = GMMEnsemble(cols, {k: mix.GaussianMixture(2) for k in type_names})
+    base.fit(actions)
+    cand.fit(actions)
+    base_bic = {k : m.bic(dfs[k]) for k,m in base.models.items()}
+    cand_bic = {k : m.bic(dfs[k]) for k,m in cand.models.items()}
+
+    while base.total_components() < n:
+        bic_delta, k = min((cand_bic[k] - base_bic[k],k) for k in cand.models)
+        if bic_delta < 0:
+            base.models[k], base_bic[k] = cand.models[k], cand_bic[k]
+            if verbose:
+                print(bic_delta, k, base.total_components())
+        n_c = cand.models[k].n_components
+        cand.models[k] = mix.GaussianMixture(n_c+1)
+        cand.models[k].fit(dfs[k])
+        cand_bic[k] = cand.models[k].bic(dfs[k])
+    return base
