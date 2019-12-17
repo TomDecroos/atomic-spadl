@@ -1,6 +1,11 @@
 import sklearn.mixture as mix
 import numpy as np
 import pandas as pd
+import tqdm
+import cvxpy as cp
+
+import sklearn.exceptions
+
 
 def simplify(actions):
     a=actions
@@ -40,7 +45,7 @@ class GMMEnsemble:
                     self.models[k].n_components = 1
                 if verbose:
                     print(f"learning {self.models[k].n_components} {k} components from {len(a)} actions")
-                    self.models[k].fit(a)
+                self.models[k].fit(a)
             else:
                 bad_models.append(k)
         if verbose:
@@ -49,9 +54,17 @@ class GMMEnsemble:
             del self.models[k]
     
     def _columns(self):
-        return [k + str(i)
+        return [k + str(i+1) for k,i in self._components()]
+    
+    def _components(self):
+        return [(k,i)
                 for k,n_c in self.components().items()
-                for i in range(1,n_c+1)]
+                for i in range(n_c)]
+    
+    def _global_to_local(self,idx):
+        return list(self._components())[idx]
+
+
     
     def predict_proba(self,actions):
         components = self._columns()
@@ -66,6 +79,8 @@ class GMMEnsemble:
             i = i + model.n_components
         return pd.DataFrame(data=probs,columns=components)
 
+
+
 def greedy_gmme(actions,cols,n,verbose=False):
     type_names = set(actions.type_name)
     dfs = {k : actions[actions.type_name == k][cols] for k in type_names}
@@ -74,17 +89,70 @@ def greedy_gmme(actions,cols,n,verbose=False):
     cand = GMMEnsemble(cols, {k: mix.GaussianMixture(2) for k in type_names})
     base.fit(actions)
     cand.fit(actions)
-    base_bic = {k : m.bic(dfs[k]) for k,m in base.models.items()}
-    cand_bic = {k : m.bic(dfs[k]) for k,m in cand.models.items()}
+    base_bic = {k : m.score_samples(dfs[k]).sum() for k,m in base.models.items()}
+    cand_bic = {k : m.score_samples(dfs[k]).sum() for k,m in cand.models.items()}
 
     while base.total_components() < n:
-        bic_delta, k = min((cand_bic[k] - base_bic[k],k) for k in cand.models)
-        if bic_delta < 0:
+        bic_delta, k = max((cand_bic[k] - base_bic[k],k) for k in cand.models)
+        if bic_delta > 0:
             base.models[k], base_bic[k] = cand.models[k], cand_bic[k]
             if verbose:
                 print(bic_delta, k, base.total_components())
         n_c = cand.models[k].n_components
         cand.models[k] = mix.GaussianMixture(n_c+1)
-        cand.models[k].fit(dfs[k])
-        cand_bic[k] = cand.models[k].bic(dfs[k])
+        if len(dfs[k]) > n_c +1:
+            cand.models[k].fit(dfs[k])
+            cand_bic[k] = cand.models[k].score_samples(dfs[k]).sum()
     return base
+ 
+
+def candidates(actions,cols,maxn,verbose=False):
+    type_names = set(actions.type_name)
+    dfs = {k : actions[actions.type_name == k][cols] for k in type_names}
+
+    candidates = []
+    for type_name in type_names:
+        a = dfs[type_name]
+        n_components = range(1,min(len(a),maxn)+1)
+        if verbose:
+            n_components= tqdm.tqdm(n_components,desc=f"Training {type_name} components")
+        for i in n_components:
+            try:
+                model = mix.GaussianMixture(i)
+                model.fit(a)
+                score = model.score_samples(a).sum()
+                candidates.append((type_name,model,score))
+            except sklearn.exceptions.ConvergenceWarning:
+                break
+    return candidates
+
+
+def ilp_select_candidates(candidates,n,verbose=False):
+
+    x = cp.Variable(len(candidates),boolean=True)
+    c = np.array(list(score for t,m,score in candidates))
+
+    objective = cp.Maximize(cp.sum(c*x))
+
+    n_components = np.array(list(m.n_components for t,m,s in candidates))
+    constraints = [n_components*x <= n]
+    for ty in set(t for t,m,score in candidates):
+        ty_idx = np.array(list(int(t == ty) for t,m,s in candidates))
+        constraints += [ty_idx*x == 1]
+    
+    constraints += [0 <= x, x <= 1]
+
+    prob = cp.Problem(objective, constraints)
+    prob.solve(verbose=verbose)
+    idx, = np.where(x.value > 0.3)
+    return list(candidates[i] for i in idx)
+
+
+
+def uncouple_probabilities(probs,left_to_right):
+    uc_probs = pd.DataFrame()
+    for t in probs.columns:
+        uc_probs[t] = probs[t].mask(~left_to_right,0)
+    for t in probs.columns:
+        uc_probs[t + "_opp"] = probs[t].mask(left_to_right,0)
+    return uc_probs
