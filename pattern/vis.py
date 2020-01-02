@@ -140,7 +140,7 @@ def plot_component_w_arrow(gmm,i,ax=None,color=None,arrowsize=2.5,mirror=False,s
     ax.add_artist(locell)
     
 
-    x,y,dx,dy = gmm.means_[i]
+    x,y,dx,dy = gmm.means_[i][:4]
 
     if mirror:
         x,y,dx,dy = 105-x,68 -y,-dx,-dy
@@ -178,7 +178,9 @@ def plot_components_arrows(gmm,figsize=6,cols=4,colors=colors,show=True):
 
     fig.set_size_inches((figsize*cols*1.5,rows*figsize))
     
-    for i in range(gmm.n_components):
+    sortedcomps = np.argsort([m[0] for m in gmm.means_])
+
+    for i,j in enumerate(sortedcomps):
 
         r = i // cols
         c = i % cols
@@ -186,7 +188,7 @@ def plot_components_arrows(gmm,figsize=6,cols=4,colors=colors,show=True):
         ax = axs[r][c]
 
         mps.field(ax=ax,show=False)
-        plot_component_w_arrow(gmm,i,ax=ax,color=colors[i % len(colors)],show=False)
+        plot_component_w_arrow(gmm,j,ax=ax,color=colors[j % len(colors)],show=False)
         ax.axis("off")
 
     plt.show()
