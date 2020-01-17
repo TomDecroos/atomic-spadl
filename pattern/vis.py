@@ -20,6 +20,23 @@ def locmovaxes(figsize=4):
     axs[1].set_ylim(-68,68)
     return axs
 
+def axes3(figsize=4):
+    fig,axs = plt.subplots(1,3)
+    fig.set_size_inches((figsize*4.5,figsize))
+    mps.field(ax=axs[0],show=False)
+    mps.field(ax=axs[1],show=False)
+    plt.axis("on")
+    plt.axis("scaled")
+    axs[2].axvline(0,color="black")
+    axs[2].axhline(0,color="black")
+    axs[2].grid()
+    axs[0].set_xlim(-1,105+1)
+    axs[0].set_ylim(-1,68+1)
+    axs[1].set_xlim(-1,105+1)
+    axs[1].set_ylim(-1,68+1)
+    axs[2].set_xlim(-105,105)
+    axs[2].set_ylim(-68,68)
+    return axs
 
 def _ellips(mean,covar,color=None):
     v, w = linalg.eigh(covar)
@@ -56,9 +73,6 @@ def component_ellipses(gmm,i,color=None):
         ells.append(ell)
     return ells[0],ells[1]
 
-def mirror_ellips(ellips):
-    ellips.width = 68-width
-    ellips.h
 
 def _loc_ellipses(gmm,colors=colors):
     means = [gmm.means_[i,0:2] for i in range(gmm.n_components)]

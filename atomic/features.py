@@ -81,6 +81,14 @@ def polar(actions):
     return polardf
 
 @simple
+def movement_polar(actions):
+    mov = pd.DataFrame()
+    mov["mov_d"] = np.sqrt(actions.dx ** 2 + actions.dy ** 2)
+    with np.errstate(divide="ignore", invalid="ignore"):
+        mov["mov_angle"] = np.nan_to_num(np.arctan(actions.dy / actions.dx))
+    return mov
+
+@simple
 def direction(actions):
     mov = pd.DataFrame()
     totald = np.sqrt(actions.dx ** 2 + actions.dy ** 2)
