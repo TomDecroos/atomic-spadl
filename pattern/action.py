@@ -134,7 +134,7 @@ def ilp_select_candidates(candidates,n,verbose=False):
 
     objective = cp.Maximize(cp.sum(c*x))
 
-    n_components = np.array(list(m.n_components for t,m,s in candidates))
+    n_components = np.array(list(m for t,m,s in candidates))
     constraints = [n_components*x <= n]
     for ty in set(t for t,m,score in candidates):
         ty_idx = np.array(list(int(t == ty) for t,m,s in candidates))
@@ -145,8 +145,7 @@ def ilp_select_candidates(candidates,n,verbose=False):
     prob = cp.Problem(objective, constraints)
     prob.solve(verbose=verbose)
     idx, = np.where(x.value > 0.3)
-    return list(candidates[i] for i in idx)
-
+    return idx
 
 
 def uncouple_probabilities(probs,left_to_right):

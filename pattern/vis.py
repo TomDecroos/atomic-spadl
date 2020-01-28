@@ -52,6 +52,38 @@ def _ellips(mean,covar,color=None):
     return ell
 
 
+def add_ellips(ax,mean,covar,color=None,alpha=0.7):
+    v, w = linalg.eigh(covar)
+    v = 2. * np.sqrt(2.) * np.sqrt(v)
+    u = w[0] / linalg.norm(w[0])
+    
+    # Plot an ellipse to show the Gaussian component
+    angle = np.arctan(u[1] / u[0])
+    angle = 180. * angle / np.pi  # convert to degrees
+    ell = mpl.patches.Ellipse(mean, v[0], v[1], 180. + angle, color=color)
+    #ell.set_clip_box(axs[0].bbox)
+    ell.set_alpha(alpha)
+    ell.width = max(ell.width,3)
+    ell.height = max(ell.height,3)
+    ax.add_artist(ell)
+    return ax
+
+def add_arrow(ax,x,y,dx,dy,arrowsize=2.5,linewidth=2,threshold=2,alpha=1):
+    if abs(dx) > threshold or abs(dy) > threshold:
+        return ax.arrow(
+                x,
+                y,
+                dx,
+                dy,
+                head_width=arrowsize,
+                head_length=arrowsize,
+                linewidth=linewidth,
+                fc="black",#colors[i % len(colors)],
+                ec="black",#colors[i % len(colors)],
+                length_includes_head=True,
+                alpha=alpha
+                )
+
 colors = ["#377eb8",
     "#e41a1c",
     "#4daf4a",
@@ -116,6 +148,24 @@ def plot_gmm_actions(gmm,actions,cols,samplefn="max",figsize=4,colors=colors,sho
     axs = locmovaxes(figsize)
     axs[0].scatter(a.x,a.y,color=pcolors)
     axs[1].scatter(a.dx,a.dy,color=pcolors)
+    if show:
+        plt.show()
+
+def plot_actions(actions,weights,samplefn="max",show=True):
+    pos_weights_idx = weights.values.sum(axis=1) > 1e-1
+    a = actions[pos_weights_idx]
+    weights = weights[pos_weights_idx]
+
+    if samplefn == "max":
+        labels = np.argmax(weights.values,axis=1)
+    else:
+        labels = np.apply_along_axis(sample,axis=1, arr=weights.values)
+
+    pcolors = [colors[l % len(colors)] for l in labels]
+    axs = axes3()
+    axs[0].scatter(a.x,a.y,color=pcolors)
+    axs[1].scatter(a.x+a.dx,a.y+a.dy,color=pcolors)
+    axs[2].scatter(a.dx,a.dy,color=pcolors)
     if show:
         plt.show()
 
