@@ -34,8 +34,10 @@ def axes3(figsize=4):
     axs[0].set_ylim(-1,68+1)
     axs[1].set_xlim(-1,105+1)
     axs[1].set_ylim(-1,68+1)
-    axs[2].set_xlim(-105,105)
-    axs[2].set_ylim(-68,68)
+    #axs[2].set_xlim(-105,105)
+    #axs[2].set_ylim(-68,68)
+    axs[2].set_xlim(-55,55)
+    axs[2].set_ylim(-35,35)
     return axs
 
 def _ellips(mean,covar,color=None):
@@ -134,7 +136,7 @@ def plot_gmm(gmm,figsize=4,colors=colors,show=True):
 
 def sample(probs):
     n = len(probs)
-    return np.random.choice(n,p=probs)
+    return np.random.choice(n,p=probs/sum(probs))
 
 def plot_gmm_actions(gmm,actions,cols,samplefn="max",figsize=4,colors=colors,show=True):
     a = actions

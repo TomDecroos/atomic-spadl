@@ -7,13 +7,11 @@ from socceraction.classification.features import (
     gamestates,
     simple,
     actiontype,
-    actiontype_onehot,
     bodypart,
     bodypart_onehot,
     time,
     team,
-    time_delta,
-    goalscore
+    time_delta
 )
 
 _spadlcolumns = [
@@ -85,7 +83,8 @@ def movement_polar(actions):
     mov = pd.DataFrame()
     mov["mov_d"] = np.sqrt(actions.dx ** 2 + actions.dy ** 2)
     with np.errstate(divide="ignore", invalid="ignore"):
-        mov["mov_angle"] = np.nan_to_num(np.arctan(actions.dy / actions.dx))
+        mov["mov_angle"] = np.arctan2(actions.dy,actions.dx)
+        mov.loc[actions.dy == 0,"mov_angle"] = 0 # fix float errors
     return mov
 
 @simple

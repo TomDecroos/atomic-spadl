@@ -127,22 +127,67 @@ def candidates(actions,cols,maxn,verbose=False):
     return candidates
 
 
-def ilp_select_candidates(candidates,n,verbose=False):
+def ilp_select_models_bic(models,verbose=False):
+    x = cp.Variable(len(models),boolean=True)
+    c = np.array(list(m.likelihood for m in models))
+    n_parameters = np.array(list(m._n_parameters() for m in models))
+    dataweights = {}
+    for m in models:
+        if m.name not in dataweights:
+            dataweights[m.name] = m.weights.sum()
+    n_data = sum(dataweights.values())
 
-    x = cp.Variable(len(candidates),boolean=True)
-    c = np.array(list(score for t,m,score in candidates))
+    objective = cp.Minimize(np.log(n_data) * cp.sum(n_parameters*x) - 2 * cp.sum(c*x))
+
+    constraints = []
+    for name in set(m.name for m in models):
+        name_idx = np.array(list(int(m.name == name) for m in models))
+        constraints += [name_idx*x == 1]
+
+    prob = cp.Problem(objective, constraints)
+    prob.solve(verbose=verbose)
+    idx, = np.where(x.value > 0.3)
+    return list(models[i] for i in idx)
+
+def ilp_select_models_likelihood(models,max_components,verbose=False):
+    x = cp.Variable(len(models),boolean=True)
+    c = np.array(list(m.likelihood for m in models))
+    n_components = np.array(list(m.n_components for m in models))
 
     objective = cp.Maximize(cp.sum(c*x))
 
+    constraints = []
+    constraints += [n_components*x <= max_components]
+    for name in set(m.name for m in models):
+        name_idx = np.array(list(int(m.name == name) for m in models))
+        constraints += [name_idx*x == 1]
+
+    prob = cp.Problem(objective, constraints)
+    prob.solve(verbose=verbose)
+    idx, = np.where(x.value > 0.3)
+    return list(models[i] for i in idx)
+
+def ilp_select_candidates(candidates,verbose=False,objective="likelihood",n_samples=1,max_components=999):
+
+    x = cp.Variable(len(candidates),boolean=True)
+    c = np.array(list(score for t,m,score in candidates))
     n_components = np.array(list(m for t,m,s in candidates))
-    constraints = [n_components*x <= n]
+
+    objectivemap = {
+        "likelihood": cp.Maximize(cp.sum(c*x)),
+        "aic": cp.Minimize(-2*cp.sum(c*x) + 2 * cp.sum(n_components*x)),
+        "bic": cp.Minimize(-2*cp.sum(c*x) + np.log(n_samples) * cp.sum(n_components*x)),
+    }
+
+    if objective=="likelihood":
+        constraints = [n_components*x <= max_components]
     for ty in set(t for t,m,score in candidates):
         ty_idx = np.array(list(int(t == ty) for t,m,s in candidates))
         constraints += [ty_idx*x == 1]
     
-    constraints += [0 <= x, x <= 1]
+    #constraints += [0 <= x, x <= 1]
 
-    prob = cp.Problem(objective, constraints)
+    prob = cp.Problem(objectivemap[objective], constraints)
     prob.solve(verbose=verbose)
     idx, = np.where(x.value > 0.3)
     return idx
