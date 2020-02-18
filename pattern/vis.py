@@ -20,6 +20,21 @@ def locmovaxes(figsize=4):
     axs[1].set_ylim(-68,68)
     return axs
 
+def axesxypolar(figsize=6):
+    fig,axs = plt.subplots(1,2)
+    fig.set_size_inches((figsize*3,figsize))
+    mps.field(ax=axs[0],show=False)
+    plt.axis("on")
+    axs[1].axvline(0,color="black")
+    axs[1].axhline(0,color="black")
+    axs[1].grid()
+    axs[0].set_xlim(-1,105+1)
+    axs[0].set_ylim(-1,68+1)
+    axs[1].set_xlim(-3.2,3.2)
+    axs[1].set_ylim(0,50)
+    return axs
+
+
 def axes3(figsize=4):
     fig,axs = plt.subplots(1,3)
     fig.set_size_inches((figsize*4.5,figsize))
@@ -164,6 +179,7 @@ def plot_actions(actions,weights,samplefn="max",show=True):
         labels = np.apply_along_axis(sample,axis=1, arr=weights.values)
 
     pcolors = [colors[l % len(colors)] for l in labels]
+
     axs = axes3()
     axs[0].scatter(a.x,a.y,color=pcolors)
     axs[1].scatter(a.x+a.dx,a.y+a.dy,color=pcolors)

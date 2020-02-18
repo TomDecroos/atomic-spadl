@@ -1,6 +1,6 @@
-import pandas as pd
-import numpy as np
-import tqdm
+import pandas as pd # type: ignore
+import numpy as np # type: ignore
+import tqdm # type: ignore
 import json
 import os
 
@@ -12,8 +12,8 @@ import os
 def jsonfiles_to_h5(jsonfiles, h5file):
 
     matches = []
-    players = []
-    teams = []
+    players : list = []
+    teams: list = []
 
     with pd.HDFStore(h5file) as store:
         for jsonfile in jsonfiles:
@@ -66,8 +66,8 @@ def get_events(root):
 
 import socceraction.spadl.config as spadlcfg
 
-spadl_length = spadlcfg.spadl_length
-spadl_width = spadlcfg.spadl_width
+spadl_length = spadlcfg.field_length
+spadl_width = spadlcfg.field_width
 
 bodyparts = spadlcfg.bodyparts
 results = spadlcfg.results
@@ -176,7 +176,7 @@ def get_player_games(match, events):
     game_id = match.wyId
     teamsData = match.teamsData
     duration = 45 + events[events.matchPeriod == "2H"].eventSec.max() / 60
-    playergames = {}
+    playergames : dict = {}
     for team_id, teamData in teamsData.items():
         formation = teamData.get("formation", {})
         pg = {
@@ -190,8 +190,8 @@ def get_player_games(match, events):
         }
 
         substitutions = formation.get("substitutions", [])
-        
-        if substitutions != 'null':
+
+        if substitutions != "null":
             for substitution in substitutions:
                 substitute = {
                     "game_id": game_id,
@@ -227,9 +227,7 @@ def augment_events(events_df):
         if "subEventId" in events_df.columns
         else events_df.subEventName
     )
-    events_df["period_id"] = events_df.matchPeriod.apply(
-        lambda x: wyscout_periods[x]
-    )
+    events_df["period_id"] = events_df.matchPeriod.apply(lambda x: wyscout_periods[x])
     events_df["player_id"] = events_df["playerId"]
     events_df["team_id"] = events_df["teamId"]
     events_df["game_id"] = events_df["matchId"]
@@ -248,13 +246,8 @@ def get_tagsdf(events):
         tagsdf[column] = tags.apply(lambda x: tag_id in x)
     return tagsdf
 
-wyscout_periods = {
-    '1H':1,
-    '2H':2,
-    'E1':3,
-    'E2':4,
-    'P':5
-}
+
+wyscout_periods = {"1H": 1, "2H": 2, "E1": 3, "E2": 4, "P": 5}
 
 
 wyscout_tags = [
@@ -618,7 +611,7 @@ def convert_touches(df_events):
     selector_same_player = df_events["player_id"] == df_events1["player_id"]
     selector_same_team = df_events["team_id"] == df_events1["team_id"]
 
-    selector_touch_same_player = selector_touch & selector_same_player
+    #selector_touch_same_player = selector_touch & selector_same_player
     selector_touch_same_team = (
         selector_touch & ~selector_same_player & selector_same_team
     )
@@ -943,6 +936,7 @@ def adjust_goalkick_result(df_actions):
 
 def fix_clearances(actions):
     next_actions = actions.shift(-1)
+    next_actions[-1:] = actions[-1:]
     clearance_idx = actions.type_id == actiontypes.index("clearance")
     actions.loc[clearance_idx, "end_x"] = next_actions[clearance_idx].start_x.values
     actions.loc[clearance_idx, "end_y"] = next_actions[clearance_idx].start_y.values

@@ -149,6 +149,39 @@ def ilp_select_models_bic(models,verbose=False):
     idx, = np.where(x.value > 0.3)
     return list(models[i] for i in idx)
 
+def select_models_solo_bic(models):
+    for m in models:
+        m.solo_bic = np.log(m.weights.sum()) * m._n_parameters() - 2 * m.likelihood
+
+    ms = []
+    for name in set(m.name for m in models):
+        bestm = min([m for m in models if m.name == name],key=lambda m: m.solo_bic)
+        ms.append(bestm)
+    return ms
+
+def ilp_select_models_aic(models,verbose=False):
+    x = cp.Variable(len(models),boolean=True)
+    c = np.array(list(m.likelihood for m in models))
+    n_parameters = np.array(list(m._n_parameters() for m in models))
+    dataweights = {}
+    for m in models:
+        if m.name not in dataweights:
+            dataweights[m.name] = m.weights.sum()
+    n_data = sum(dataweights.values())
+
+    objective = cp.Minimize(2 * cp.sum(n_parameters*x) - 2 * cp.sum(c*x))
+
+    constraints = []
+    for name in set(m.name for m in models):
+        name_idx = np.array(list(int(m.name == name) for m in models))
+        constraints += [name_idx*x == 1]
+
+    prob = cp.Problem(objective, constraints)
+    prob.solve(verbose=verbose)
+    idx, = np.where(x.value > 0.3)
+    return list(models[i] for i in idx)
+    
+
 def ilp_select_models_likelihood(models,max_components,verbose=False):
     x = cp.Variable(len(models),boolean=True)
     c = np.array(list(m.likelihood for m in models))

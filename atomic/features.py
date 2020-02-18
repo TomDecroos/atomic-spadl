@@ -45,8 +45,8 @@ def play_left_to_right(gamestates, home_team_id):
     a0 = gamestates[0]
     away_idx = a0.team_id != home_team_id
     for actions in gamestates:
-        actions.loc[away_idx,"x"] = spadl.spadl_length - actions[away_idx]["x"].values
-        actions.loc[away_idx,"y"] = spadl.spadl_width - actions[away_idx]["y"].values
+        actions.loc[away_idx,"x"] = spadl.field_length - actions[away_idx]["x"].values
+        actions.loc[away_idx,"y"] = spadl.field_width - actions[away_idx]["y"].values
         actions.loc[away_idx,"dx"] = - actions[away_idx]["dx"].values
         actions.loc[away_idx,"dy"] = - actions[away_idx]["dy"].values
     return gamestates
@@ -65,8 +65,8 @@ def actiontype_onehot(actions):
 def location(actions):
     return actions[["x","y"]]
 
-_goal_x = spadl.spadl_length
-_goal_y = spadl.spadl_width / 2
+_goal_x = spadl.field_length
+_goal_y = spadl.field_width / 2
 
 @simple
 def polar(actions):

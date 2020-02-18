@@ -1,8 +1,8 @@
-import tqdm
-import json
-import pandas as pd
-import numpy as np
-import unidecode
+import tqdm # type: ignore
+import json # type: ignore
+import pandas as pd # type: ignore
+import numpy as np # type: ignore
+import unidecode # type: ignore
 
 
 #####################################
@@ -24,7 +24,7 @@ def jsonfiles_to_h5(jsonfiles, h5file, append=True):
             pass
     jsonfiles = set(jsonfiles) - seen_files
 
-    d = {
+    d : dict = {
         key: []
         for key in [
             "games",
@@ -463,14 +463,14 @@ eventtypes = [
 # Convert opta.h5 to spadl.h5
 ##############################
 
-import socceraction.spadl.config as spadlcfg
+import socceraction.spadl.config as spadlconfig
 
-spadl_length = spadlcfg.spadl_length
-spadl_width = spadlcfg.spadl_width
+spadl_length = spadlconfig.field_length
+spadl_width = spadlconfig.field_width
 
-bodyparts = spadlcfg.bodyparts
-results = spadlcfg.results
-actiontypes = spadlcfg.actiontypes
+bodyparts = spadlconfig.bodyparts
+results = spadlconfig.results
+actiontypes = spadlconfig.actiontypes
 
 
 def convert_to_spadl(optah5, spadlh5):
@@ -723,6 +723,7 @@ def add_dribbles(actions):
 
 def fix_clearances(actions):
     next_actions = actions.shift(-1)
+    next_actions[-1:] = actions[-1:]
     clearance_idx = actions.type_id == actiontypes.index("clearance")
     actions.loc[clearance_idx, "end_x"] = next_actions[clearance_idx].start_x.values
     actions.loc[clearance_idx, "end_y"] = next_actions[clearance_idx].start_y.values
